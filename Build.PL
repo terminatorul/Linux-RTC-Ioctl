@@ -14,13 +14,17 @@ my $builder = Module::Build->new(
     },
     build_requires => {
         'Test::More' => 0,
+	'Fcntl'	     => 0,
+	'POSIX'	     => 0
     },
     requires => {
-        #'ABC'              => 1.6,
-        #'Foo::Bar::Module' => 5.0401,
+        'Carp'              => 0,
+	'Cwd'		    => 0
     },
     add_to_cleanup     => [ 'Linux-RTC-Ioctl-*' ],
     create_makefile_pl => 'traditional',
+    c_source	       => 'src',
+    # extra_compiler_flags => '-g -O0'
 );
 
 $builder->create_build_script();

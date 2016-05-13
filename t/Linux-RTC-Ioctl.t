@@ -7,8 +7,10 @@
 
 use strict;
 use warnings;
+use Fcntl qw(SEEK_SET);
 
-use Test::More tests => 2;
+use Test::More tests => 11;
+
 BEGIN { use_ok('Linux::RTC::Ioctl', qw(:all)) };
 
 
@@ -18,7 +20,7 @@ foreach my $constname (qw(
 	RTC_EPOCH_SET RTC_IRQF RTC_IRQP_READ RTC_IRQP_SET RTC_MAX_FREQ RTC_PF
 	RTC_PIE_OFF RTC_PIE_ON RTC_PLL_GET RTC_PLL_SET RTC_RD_TIME RTC_SET_TIME
 	RTC_UF RTC_UIE_OFF RTC_UIE_ON RTC_VL_CLR RTC_VL_READ RTC_WIE_OFF
-	RTC_WIE_ON RTC_WKALM_RD RTC_WKALM_SET)) {
+	RTC_WIE_ON RTC_WKALM_RD RTC_WKALM_SET RTC_RECORD_SIZE)) {
   next if (eval "my \$a = $constname; 1");
   if ($@ =~ /^Your vendor has not defined Linux::RTC::Ioctl macro $constname/) {
     print "# pass: $@";
@@ -35,3 +37,76 @@ ok( $fail == 0 , 'Constants' );
 # Insert your test code below, the Test::More module is use()ed here so read
 # its man page ( perldoc Test::More ) for help writing this test script.
 
+# Test opening and writing
+
+my $rtc = Linux::RTC::Ioctl->new('/dev/null');
+
+ok($rtc->nodename eq '/dev/null', 'Device file name');
+
+ok(fileno $rtc->device >= 0, 'Open file handle');
+
+eval { $rtc->wait_for_timer };
+ok($@ =~ m/^Unexpected end of file from real time clock device/, 'EOF from RTC device');
+
+open my $DEV_NULL, '<:unix:raw:bytes', '/dev/null';
+
+$rtc = Linux::RTC::Ioctl->new($DEV_NULL);
+close($DEV_NULL);
+eval { $rtc->wait_for_timer };
+ok($@ =~ m'Invalid device file handle.', 'Invalid handle');
+
+open my $DEV_FILE, '+>:unix:raw:bytes', "/tmp/rtc.$$";
+syswrite $DEV_FILE, pack 'L!', (28 << 8 | RTC_IRQF | RTC_PF | RTC_AF | RTC_UF);
+sysseek $DEV_FILE, 0, SEEK_SET;
+
+$rtc = Linux::RTC::Ioctl->new($DEV_FILE);
+
+if (-e "/proc/$$/fd/0")
+{
+    if (exists &CORE::readlink)
+    {
+	ok("/tmp/rtc.$$" eq $rtc->nodename, 'Device file name');
+    }
+    else
+    {
+	ok("/proc/$$/fd/" . fileno($DEV_FILE) eq $rtc->nodename, 'Device file name');
+    }
+}
+else
+{
+    ok(1, '"proc" fs not available');
+}
+
+my ($timer_flags, $timer_count) = $rtc->wait_for_timer;
+
+ok($timer_flags & RTC_PF && $timer_flags & RTC_UF && $timer_flags & RTC_AF && $timer_flags & RTC_IRQF, 'Timer flags');
+ok($timer_count == 28, 'Timer count');
+
+# test the example reading code from the documentation
+sysseek $DEV_FILE, 0, SEEK_SET;
+
+#
+    my $rtc_record = pack 'L!', 0;
+    my $record_size = length $rtc_record;   # length also given as the package constant RTC_RECORD_SIZE
+    my $size = sysread $rtc->device, $rtc_record, $record_size;	# blocks until next timer event occurs
+
+    defined $size or die("Access to real time clock device failed: $!");
+    $size == $record_size or die("Unexpected end of file reading RTC device.");
+
+    $rtc_record = unpack 'L!', $rtc_record;
+
+    # Event flags and the interrupt count are now available
+    $timer_flags = $rtc_record & 0xFF;
+    $timer_count = $rtc_record >> 8;
+#
+
+ok($timer_flags & RTC_PF && $timer_flags & RTC_UF && $timer_flags & RTC_AF && $timer_flags & RTC_IRQF, 'Example timer flags');
+ok($timer_count == 28, 'Example timer count');
+
+$rtc = undef;
+close($DEV_FILE);
+
+END
+{
+    unlink "/tmp/rtc.$$"
+}

@@ -83,3 +83,5 @@
 \blib/Linux/RTC/Ioctl.c$
 \blib/Linux/RTC/Ioctl.o$
 \bxt/boilerplate.t$
+src/IoctlNative.o
+tags

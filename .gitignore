@@ -20,3 +20,7 @@ pm_to_blib
 Linux-RTC-Ioctl-*
 Linux-RTC-Ioctl-*.tar.gz
 MANIFEST.SKIP.bak
+tags
+*~
+*.orig
+*.o

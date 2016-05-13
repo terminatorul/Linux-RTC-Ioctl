@@ -414,6 +414,12 @@ __END__
 #endif
     }
     break;
+  case 15:
+    if (memEQ(name, "RTC_RECORD_SIZE", 15)) {
+	*iv_return = (IV)(sizeof(unsigned long));
+	return PERL_constant_ISUV;
+    }
+    break;
   }
   return PERL_constant_NOTFOUND;
 }

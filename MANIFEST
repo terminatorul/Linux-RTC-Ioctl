@@ -1,5 +1,7 @@
 Build.PL
 Changes
+src/IoctlNative.h
+src/IoctlNative.c
 lib/Linux/RTC/const-c.inc
 lib/Linux/RTC/const-xs.inc
 lib/Linux/RTC/Ioctl.xs
@@ -11,3 +13,4 @@ t/manifest.t
 t/pod-coverage.t
 t/pod.t
 t/Linux-RTC-Ioctl.t
+t/Device-Access.t
