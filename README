@@ -19,23 +19,23 @@ The main feature you might be interested in is the wake-up alarm, that
 on most hardware can pull the computer out of suspend / stand-by mode or
 even out of shut down (power-on by alarm clock).
 
-The RTC runs in a time zone that is independent of the system time zone.
-So the time zone can be either GMT or the local time zone, and most
-Linux distributions install with GMT by default, to prevent problems
-with the transition to and from daylight saving time (DST or summer
-time).
+The RTC runs in a time zone that is independent of the system time zone,
+as it can be either GMT or the local time zone. Most Linux distributions
+install with GMT by default, to prevent problems with the transition to
+and from daylight saving time (DST or summer time).
 
 Functionality from this module is based on access to the system device
-files (/dev/rtc, /dev/rtcN), and so are expected to require root privileges.
+files (/dev/rtc, /dev/rtcN), so the file must be readable for you in
+order to use the RTC device.
 
 Module is written according to the available driver documentation for
 the RTC Linux kernel driver, found at
     https://www.kernel.org/doc/Documentation/rtc.txt
 
-Uses the ioctl interface (instead of sysfs interface).
+Uses the ioctl interface (as opposed to the sysfs or procfs interfaces).
 
-Linux::RTC::Ioctl is an extension module that require a C compiler and
-the <linux/rtc.h> system header for installation.
+Linux::RTC::Ioctl is an extension module that will require a C compiler
+and the <linux/rtc.h> system header for installation.
 
 
 INSTALLATION
