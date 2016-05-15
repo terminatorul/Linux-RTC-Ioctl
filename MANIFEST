@@ -14,3 +14,6 @@ t/pod-coverage.t
 t/pod.t
 t/Linux-RTC-Ioctl.t
 t/Device-Access.t
+Makefile.PL
+META.yml
+META.json

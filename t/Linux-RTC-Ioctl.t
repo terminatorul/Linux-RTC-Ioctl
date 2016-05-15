@@ -9,7 +9,7 @@ use strict;
 use warnings;
 use Fcntl qw(SEEK_SET);
 
-use Test::More tests => 11;
+use Test::More tests => 25;
 
 BEGIN { use_ok('Linux::RTC::Ioctl', qw(:all)) };
 
@@ -77,6 +77,70 @@ else
     ok(1, '"proc" fs not available');
 }
 
+SKIP:
+{
+    skip 'Periodic frequency not available on the platform.', 1
+	unless defined \&Linux::RTC::Ioctl::periodic_frequency;
+
+    ok(!defined $rtc->periodic_frequency && !defined $rtc->periodic_frequency(20), 'Periodic frequency ioctl can report errors.');
+}
+
+SKIP:
+{
+    skip 'Periodic interrupt not available on the platform', 1
+	unless defined \&Linux::RTC::Ioctl::periodic_interrupt;
+
+    ok(!defined $rtc->periodic_interrupt(0) && !defined $rtc->periodic_interrupt(!0), 'Periodic interrupt ioctl can report errors.');
+}
+
+SKIP:
+{
+    skip 'Update interrupt not available on the platform.', 1
+	unless defined \&Linux::RTC::Ioctl::update_interrupt;
+
+    ok(!defined $rtc->update_interrupt(0) && !defined $rtc->update_interrupt(!0), 'Update interrupt ioctl can report errors.');
+}
+
+SKIP:
+{
+    skip 'Alarm interrupt not available on the platform.', 1
+	unless defined \&Linux::RTC::Ioctl::alarm_interrupt;
+
+    ok(!defined $rtc->alarm_interrupt(0) && !defined $rtc->alarm_interrupt(!0), 'Alarm interrupt ioctl can report errors.');
+}
+
+SKIP:
+{
+    skip 'RTC read ioctl not available on the platform.', 1
+	unless defined \&Linux::RTC::Ioctl::read_time;
+
+    ok(!defined $rtc->read_time, 'RTC read ioctl can report errors.');
+}
+
+SKIP:
+{
+    skip 'RTC set ioctl not available on the platform.', 1
+	unless defined \&Linux::RTC::Ioctl::set_time;
+
+    ok(!defined $rtc->set_time, 'RTC set ioctl can report errors.');
+}
+
+SKIP:
+{
+    skip 'RTC alarm read ioctl not available on the platform.', 1
+	unless defined \&Linux::RTC::Ioctl::read_alarm;
+
+    ok(!defined $rtc->read_alarm, 'RTC alarm read ioctl can report errors.');
+}
+
+SKIP:
+{
+    skip 'RTC alarm set ioctl not available on the platform.', 1
+	unless defined \&Linux::RTC::Ioctl::set_alarm;
+
+    ok(!defined $rtc->set_alarm, 'RTC_alarm set ioctl can report errors.');
+}
+
 my ($timer_flags, $timer_count) = $rtc->wait_for_timer;
 
 ok($timer_flags & RTC_PF && $timer_flags & RTC_UF && $timer_flags & RTC_AF && $timer_flags & RTC_IRQF, 'Timer flags');
@@ -103,10 +167,35 @@ sysseek $DEV_FILE, 0, SEEK_SET;
 ok($timer_flags & RTC_PF && $timer_flags & RTC_UF && $timer_flags & RTC_AF && $timer_flags & RTC_IRQF, 'Example timer flags');
 ok($timer_count == 28, 'Example timer count');
 
-$rtc = undef;
-close($DEV_FILE);
+# Simple test for $rtc->rtctime
+
+my $null_rtc = Linux::RTC::Ioctl->new("/dev/null");
+
+is_deeply([ $null_rtc->rtctime ], [ -1, -1, -1, -1, -1, -1, -1, -1, -1 ], '$null_rtc->rtctime');
+
+($$null_rtc{sec}, $$null_rtc{min}, $$null_rtc{hour}, $$null_rtc{mday}, $$null_rtc{mon}, $$null_rtc{year}, $$null_rtc{wday}, $$null_rtc{yday}, $$null_rtc{isdst}) = 
+     (10, 22, 8, 28, 11, 2016, 0, 0, -3);
+
+is($null_rtc->{sec}, 10, '$null_rtc object members populated.');
+
+is_deeply([ $null_rtc->rtctime ], [ 10, 22, 8, 28, 11, 2016, 0, 0, -3 ], '$rtc->rtctime reads all members');
+
+$null_rtc->rtctime(11, 23, 7, 29, 12, 2015, 1, 1, 8);
+
+is_deeply([ $null_rtc->rtctime ], [11, 23, 7, 29, 12, 2015, 1, 1, 8], '$rtc->rtctime(...) sets all members');
+
+$null_rtc->rtctime(9, 21, 9, 27, 10, 2014);
+
+is_deeply([ $null_rtc->rtctime ], [9, 21, 9, 27, 10, 2014, 1, 1, 8], '$rtc->rtctime(...) sets used members');
+
+# Open non-existent file
+my $undef_rtc = Linux::RTC::Ioctl->new('/adfsfdaGUID_433423_34FFA_4314_08');
+ok (! defined $undef_rtc, 'Non-existent device file returns undef object.');
 
 END
 {
+    $null_rtc = undef if defined($null_rtc);
+    $rtc = undef if defined($rtc);
+    close($DEV_FILE) if defined($DEV_FILE);
     unlink "/tmp/rtc.$$"
 }

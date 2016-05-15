@@ -13,7 +13,8 @@ Note /dev/rtc is now usually a symlink to /dev/rtc0
 
 Beware the RTC should not be used directly for usual timer or date and
 time services, but rather it is a low level hardware device that is
-mostly managed by the OS.
+mostly managed by the OS. To access the RTC device file, usually you
+need to be root or to be given permissions on the file.
 
 The main feature you might be interested in is the wake-up alarm, that
 on most hardware can pull the computer out of suspend / stand-by mode or

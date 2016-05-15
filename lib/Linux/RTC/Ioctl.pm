@@ -40,12 +40,12 @@ Usage:
 
     use Linux::RTC::Ioctl;
 
-    my $rtc = Linux::RTC::Ioctl->new($device);
+    my $rtc = Linux::RTC::Ioctl->new($device) // die "Error: $!";
 
     $sec, $min, $hour, $mday, $mon, $year = $rtc->read_time;
 
     # or:
-    $rtc->read_time;
+    $rtc->read_time // die "Failed to read RTC device: $!";
     $sec, $min, $hour = $rtc->{sec}, $rtc->{min}, $rtc->{hour};
 
     $rtc->{year} += 1;
@@ -57,11 +57,11 @@ Usage:
     $rtc->update_interrupt($enable);
 
     $freq = 20;
-    $rtc->periodic_frequency($freq);
+    $rtc->periodic_frequency($freq) // die "Access to RTC device failed: $!";
     $freq = $rtc->periodic_frequency;
     $rtc->periodic_interrupt($enable);
 
-    $rtc->read_alarm
+    $rtc->read_alarm // die "Access to RTC device $rtc->nodename failed: $!";
     $rtc->set_alarm($sec, $min, $hour, $mday, $mon, $year);
     $rtc->read_wakup_alarm
     $rtc->set_wakeup_alarm($sec, $min, $hour, $mday, $mon, $year);
@@ -69,40 +69,66 @@ Usage:
 
 =head1 DESCRIPTION
 
-C<$device> can be a device file name, a device number (0, 1, 2..) or empty
-(C<undef>), in which case F</dev/rtc> is used.
+C<$device> can be an open file handle, a device file name, a device number
+(0, 1, 2..) or empty (C<undef>), in which case F</dev/rtc> is used.
 
 The Linux driver has built-in locking so that only one process can have the
-F</dev/rtc> interface open at a time. You must have permissions to access the
-device file, according to the usual file owner and group.
+F</dev/rtc> interface open at a time. You must be root or must have permissions
+to access the device file, according to the usual file owner and group. User
+processes than can access the device, still need to have the CAP_SYS_TIME
+capability in order to use the C<< $rtc->set_time >> method.
 
 Beware the RTC time runs in the RTC time zone, which is not the same as the 
 local time zone of the system, as it can also be GMT. To prevent problems with
-the transition to and from daylight saving time, the RTC should run in the GMT
-time zone, which is usually the default for the Linux setup. Note there is no
+the transition to and from DST (daylight saving time), the RTC should run in the
+GMT time zone, which is usually the default for the Linux setup. Note there is no
 why to retrieve this time zone from the RTC device, the system stores this
-information elsewhere. See the manual page for the `hwclock` command for more
-details.
+information elsewhere (see the manual page for the `hwclock` command for more
+details). Even if you know the RTC time zone, the RTC time will not accurately
+match the system time. Linux OS learns how fast the RTC time is running compared
+to real time, and if it is not accurate, Linux will constantly adjust the RTC
+(every 11 min) to keep it close to the real time.
 
 Any functionality described here is present only when supported by the RTC
-hardware.
+hardware. Methods that access the device return C<undef> in case of error,
+in which case you can read the system error variable C<$!>. Methods are
+defined only if the corresponding ioctl request is defined for the platform,
+you can check for example C<defined \&Linux::RTC::Ioctl::set_wakeup_alarm>.
 
 All methods can take the date-time components from:
 
-    * the argument list (if arguments are passed)
-    * the $rtc object (empty arguments list)
+=over 4
+
+=item * the argument list (if arguments are passed)
+
+=item * the C<$rtc> object fields (empty arguments list)
+
+=back
 
 All methods can return the date-time components as:
 
-    * function result (in list context)
-    * the $rtc object (in scalar or void context)
+=over 4
 
-All information here is taken from the documentation for Linux RTC driver
-provided with the kernel at:
+=item * function result (if called in list context)
 
-    L<https://www.kernel.org/doc/Documentation/rtc.txt>
+=item * the C<$rtc> object fields (in scalar or void context)
 
-from the 'rtc' manual page and from the C header file <F<linux/rtc.h>>.
+=back
+
+All information here is taken from:
+
+=over 4
+
+=item * the documentation for Linux RTC driver provided with the kernel at:
+L<https://www.kernel.org/doc/Documentation/rtc.txt>
+
+=item * the 'rtc' manual page
+
+=item * the C header file <F<linux/rtc.h>>
+
+=back
+
+See your platform documentation for more information.
 
 =cut
 
@@ -151,7 +177,8 @@ Creates an RTC object from given open file handle, device file name, device inde
 If an open file handle is given, it must represent a device file on the platform, that supportes the RTC ioctl commands.
 Binary mode will be turned on for the open handle
 
-Only one process can open the same RTC device at a time.
+Only one process can open the same RTC device at a time. Returns C<undef> if opening fails, in which case you can read
+the C<$!> variable.
 
 =cut
 
@@ -190,10 +217,17 @@ sub new($;$)
 	
 	$device = '/dev/rtc' . $device if ($device =~ m/^\d+$/);
 
-	open $$self{'device'}, '<:unix:raw', $device or croak "Failed to open real time clock device $device: $!";
-	binmode $self->{'device'};
+	if (open $$self{'device'}, '<:unix:raw', $device)
+	{
+	    binmode $self->{'device'};
 
-	$self->{nodename} = $device;
+	    $self->{nodename} = $device;
+	}
+	else
+	{
+	    carp "Failed to open real time clock device $device: $!";
+	    $self = undef;
+	}
     }
 
     return $self;
@@ -223,7 +257,7 @@ When the event occurs, a block of fixed size (given by C<RTC_RECORD_SIZE>, which
 be read, of which the low order byte is a bitmask of flags choosen from C<RTC_PF> (for periodic interrupt), C<RTC_UF> (time update interrupt) and
 C<RTC_AF> (alarm interrupt), and the remaining bytes are a count of interrupts that occurred since the last read.
 
-You can also use the file handle in calls to C<select()> to avoid completely blocking the current thread on the RTC device file only.
+You can also use the file handle in calls to C<select()> to avoid blocking the current thread on the RTC device only.
 
 Example for reading the device file:
 
@@ -255,21 +289,16 @@ sub device(\%)
     $rtc->rtctime($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst)
 
 Similar to C<localtime> and C<gmtime>, C<< $rtc->rtctime >> returns a list of the the broken-down time components stored in the C<$rtc> object.
-You can also pass such a list to this method to populate the C<$rtc> object.
+You can also pass such a list to this method, to populate the C<$rtc> object.
 
 There is no calendar time alternative to these components, measured as seconds from the begining of the Unix epoch. To build one you would need to
-know the RTC time zone first (either GMT or the local time zone) which the RTC device does not know. The Linux system stores this information
-elsewhere, see the manual page for the C<hwclock> command.
+know the RTC time zone first (either GMT or the local time zone) which the RTC device does not know.
 
-The time components stored in the C<$rtc> device are used by the C<set_time>, C<set_alarm> and C<set_wakeup_alarm> methods when they are called
+The time components stored in the C<$rtc> object are used by the C<set_time>, C<set_alarm> and C<set_wakeup_alarm> methods when they are called
 without any arguments. The time components are also populated by the C<read_time>, C<read_alarm> and C<read_wakeup_alarm> methods when they
 are called in void or scalar context. When such methods are called in list context, the time components are returned as usual and are NOT stored
 in the C<$rtc> object.
 
-
-Note that the corresponding calendar time (sencods since the epoch) depends on the RTC time zone, which the RTC device does not know.
-The platform stores the time zone difference between the local time zone and the RTC elsewhere, see the manual page for the C<hwclock>
-command.
 
 Note the RTC device does not use the last 3 time components: C<$wday>, C<$yday>, C<$isdst>.
 
@@ -332,68 +361,89 @@ sub rtctime(\%;$$$$$$$$$)
 
 =head2 $rtc->wait_for_timer
 
-    $event_flags, $event_count = $rtc->wait_for_timer()
+    $event_flags, $event_count = $rtc->wait_for_timer();
 
 Wait for the next timer event.
 
 Will issue a read from this RTC device. Blocks the current thread, so only use if you set up the alarm and/or you know
 it is going to ring soon enough. To avoid blocking the thread for just the RTC device, you can use the $rtc->device
-as an open handle in a call to C<select()>.
+in a call to C<select()>.
 
 Returns a bitmask of flags indicating what timer events have occurred, and a count of all the events since the last read.
-See the RTC_PF, RTC_UP, RTC_AF falgs.
+See the RTC_PF, RTC_UP, RTC_AF, RTC_IRQF falgs. If read failes returns C<undef>, in which case you can read the C<$!> variable.
 
 
 =head2 $rtc->periodic_frequency
 
-    $rtc->periodic_frequency($frequncy)
+    $rtc->periodic_frequency($frequncy);
     $frequency = $rtc->periodic_frequency;
 
 Sets up the the requency for periodic RTC events (interrupts). The frequency must be a power of 2 between 2 and C<RTC_MAX_FREQ>.
 After setting the frequency you should also enable the periodic interrupt. Maximum frequency for a non-root user (usually 64)
-can be read from file C</sys/class/rtc/rtc0/max-user-freq>.
+can be read from file C</sys/class/rtc/rtc0/max-user-freq>. Returns C<undef> if the underlaying ioctl call failes, in which case
+you can read the C<$!> variable.
 
-=head2 $rtc->periodic_interrupts($enable)
+=head2 $rtc->periodic_interrupt($enable)
 
 Sets up the RTC device to emit or not periodic (frequncy) timer events (IRQ 8 interrupts). Enable or disable the periodic interrupts.
+Returns C<undef> on failure from the underlaying ioctl call, read C<$!> variable.
 
-=head2 $rtc->update_interrupts($enable)
+=head2 $rtc->update_interrupt($enable)
 
 Sets up the RTC device to emit or not update timer events (whenever the current time changes). Enable or disable the update interrupts.
+Returns C<undef> on failure from the underlaying ioctl call, read C<$!> variable.
 
-=head2 $rtc->alarm_interrupts($enable)
+=head2 $rtc->alarm_interrupt($enable)
 
 Sets up the RTC device to emit or not timer events (IRQ 8 interrupts). Enable or disable the alarm interrupts.
+Returns C<undef> on failure from the underlaying ioctl call, read C<$!> variable.
 
 =head2 $rtc->read_time
 
 =head2 $rtc->set_time
 
-    $rtc->read_time
-    $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst = $rtc->read_time
+    $rtc->read_time;
+    $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst = $rtc->read_time;
     
-    $rtc->set_time
-    $rtc->set_time($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst)
+    $rtc->set_time;
+    $rtc->set_time($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst);
 
 Sets or reads the RTC date and time in the RTC time zone. Uses the members in C<$rtc>: C<< $rtc->{sec} >>, C<< $rtc->{min} >>
 C<< $rtc->{hour} >>, C<< $rtc->{mday} >>, C<< $rtc->{mon} >>, C<< $rtc->year >>, C<< $rtc->{wday} >> (not used), C<< $rtc->{yday} >>
 (not used), C<< $rtc->isdst >> (not used). These fields are similar to the components return from C<gmtime> or C<localtime>: mon begins
-with 0 for january, year begins with 0 for 1900.
+with 0 for january, year begins with 0 for 1900. For non-root users, even if you can read the device, you still need CAP_SYS_TIME capability
+to set the real time clock. Returns C<undef> on error, when you can read the C<$!> variable.
 
 =head2 $rtc->read_alarm
 
 =head2 $rtc->set_alarm
 
-    $rtc->read_alarm
-    $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst = $rtc->read_alarm
+    $rtc->read_alarm;
+    $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst = $rtc->read_alarm;
     
-    $rtc->set_alarm
-    $rtc->set_alarm($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst)
+    $rtc->set_alarm;
+    $rtc->set_alarm($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst);
 
-Sets or reads the RTC date and time in the RTC time zone. Uses the members in C<$rtc>: C<< $rtc->{sec} >>, C<< $rtc->{min} >>
+Sets or reads the RTC alarm time in the RTC time zone. Can use the members in C<$rtc>: C<< $rtc->{sec} >>, C<< $rtc->{min} >>
 C<< $rtc->{hour} >>, C<< $rtc->{mday} >>, C<< $rtc->{mon} >>, C<< $rtc->year >>, C<< $rtc->{wday} >> (not used), C<< $rtc->{yday} >>
-(not used), C<< $rtc->isdst >> (not used). These fields are similar to the components return from C<gmtime> or C<localtime>: mon begins
-with 0 for january, year begins with 0 for 1900.
+(not used), C<< $rtc->isdst >> (not used). The Linux documentation describes only the time components (sec, min, hour) as being used here,
+and not the date components. These fields are similar to the components returned from C<gmtime> or C<localtime>. Returns C<undef> on error,
+when you can read the C<$!> variable.
+
+=head2 $rtc->read_wakeup_alarm
+
+=head2 $rtc->set_wakeup_alarm
+
+    $rtc->read_wakup_alarm // die "Access to real time clock device $rtc->nodename failed: $!";
+    $enabled, $pending, $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst = $rtc->read_wakeup_alarm;
+
+Some RTCs support these methods as improved (and preferred) versions of C<< $rtc->read_alarm >> and C<< $rtc->set_alarm >>.
+The C<$enabled> argument or return is used to enabled or diable the alarm interrupt for this alarm, the C<< $rtc->alarm_interrupt >> call
+is not used for this alarm. The C<$pending> argument is used to report a pending interrupt, mostly for firmware, do not use it.
+
+Both time and date components should work to set the wake-up alarm. Some hardware allows periodic alarms if you use 0 for year, month, day,
+etc. On most hardware this alarm can kick the computer out of suspend / stand-by or even hibernate / power-off (might not work for laptops
+running on battery power).
 
 =head2 $rtc->close
 
@@ -403,7 +453,7 @@ Closes the underlaying device in C<< $rtc->device >> (like C</dev/rtc>). The C<$
 
 sub close(\%)
 {
-    close $_[0]->{device};
+    return close $_[0]->{device};
 }
 
 =head1 EXPORT
@@ -420,10 +470,14 @@ Each of the following constants is exported only if the platform defines it.
 
 =head3 ioctl requests:
 
+The following constants are exposed from the system headers of the underlaying
+platofrm (see <F<linux/rtc.h>>), and have been used to implement the methods above.
+
 Enable/disable periodic interrupt. Can be used to generate a periodic signal
 with any power of 2 frequency between 2Hz and C<RTC_MAX_FREQ> for root user
-(usually max 64Hz for non-root). Using the maximum frequency is likely to
-consume CPU time resources on your target machine.
+(usually max 64Hz for non-root, see F</sys/class/rtc/rtc0/max_user_freq>).
+Using the maximum frequency is likely to consume CPU time resources on your
+target machine.
 
     RTC_PIE_OFF
     RTC_PIE_ON
@@ -439,13 +493,6 @@ Enable/disable timer interrupt when the alarm rings.
 
     RTC_AIE_ON
     RTC_AIE_OFF
-
-Enabled/disable timer interrupt when the wake-up alarm rings. With most hardware
-this alarm can also wake the computer from sleep (stand-by), hibernate or even
-shutdown.
-
-    RTC_WIE_OFF
-    RTC_WIE_ON
 
 Read and set current RTC date and time.
 
@@ -464,10 +511,16 @@ supported.
     RTC_ALM_READ
     RTC_ALM_SET
 
-Read or set the wake-up alarm time. Supports both date and time.
+Read or set the wake-up alarm time. Supports both date and time. For most hardware this alarm can pull the computer
+out of suspend/sleep, and even out of hibrenate/poweroff.
 
     RTC_WKALM_RD
     RTC_WKALM_SET
+
+Read / set periodic interrupt frequency:
+
+    RTC_IRQP_READ
+    RTC_IRQP_SET
 
 =head3 Flags for records read from the RTC device file
 
@@ -488,7 +541,7 @@ Flag indicating an alarm interrupt occurrent (the alarm was set and just went of
 
     RTC_AF
 
-Flags mask for any of the above:
+Flag indicating any of the above 3 flags is also set:
 
     RTC_IRQF
 
@@ -496,11 +549,6 @@ Flags mask for any of the above:
 
 These are not documented in the Linux kernel, but are exposed to C/C++
 programs in the system headers.
-
-Read / set IRQ rate:
-
-    RTC_IRQP_READ
-    RTC_IRQP_SET
 
 Read / set PLL correction (like the RTC used in Q40/Q60 computers):
 
@@ -511,6 +559,10 @@ Read voltage low detector / clear voltage low information:
 
     RTC_VL_READ
     RTC_VL_CLR
+
+=head3 constant
+
+Internal method used to autoload the above constants.
 
 =cut
 
