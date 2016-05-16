@@ -9,7 +9,7 @@ use strict;
 use warnings;
 use Fcntl qw(SEEK_SET);
 
-use Test::More tests => 25;
+use Test::More tests => 27;
 
 BEGIN { use_ok('Linux::RTC::Ioctl', qw(:all)) };
 
@@ -138,7 +138,23 @@ SKIP:
     skip 'RTC alarm set ioctl not available on the platform.', 1
 	unless defined \&Linux::RTC::Ioctl::set_alarm;
 
-    ok(!defined $rtc->set_alarm, 'RTC_alarm set ioctl can report errors.');
+    ok(!defined $rtc->set_alarm, 'RTC alarm set ioctl can report errors.');
+}
+
+SKIP:
+{
+    skip 'Read Voltage Low indicator not available on the platform', 1
+	unless defined  \&Linux::RTC::Ioctl::read_voltage_low_indicator;
+
+    ok(!defined $rtc->read_voltage_low_indicator, 'RTC read voltage low indicator can report errors.');
+}
+
+SKIP:
+{
+    skip 'Clear Voltage Low indicator not available on the platform', 2
+	unless defined \&Linux::RTC::Ioctl::clear_voltage_low_indicator;
+
+    ok(!defined $rtc->clear_voltage_low_indicator, 'RTC clear voltage low indicator can report errors.');
 }
 
 my ($timer_flags, $timer_count) = $rtc->wait_for_timer;

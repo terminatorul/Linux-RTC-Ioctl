@@ -20,7 +20,6 @@ static const char
     invalidHandleMsg[] = "Invalid device file handle.",
     missingDeviceFileMsg[] = "No device file given.",
     rtcRecordSizeMsg[] = "Unexpected end of file from real time clock device %s.",
-    invalidRTCAccessMsg[] = "Access to real time clock device %s failed.",
     unsignedParamMsg[] = "Unsigned number parameter expected.",
     numericParamMsg[] = "Numeric parameter expected.",
     hashAccessFailedMsg[] = "Failed to access $rtc object hash keys.",
@@ -99,17 +98,7 @@ periodic_frequency(HV *rtc, ...)
     PROTOTYPE: \%;$
     PPCODE:
 	int fd = -1;
-	char const *node = "";
 	SV **device = hv_fetch(rtc, "device", 6, 0);;
-
-	{
-	    SV **nodename = hv_fetch(rtc, "nodename", 8, 0);
-
-	    if (nodename && (node = SvPV_nolen(*nodename), SvPOK(*nodename)))
-		;
-	    else
-		node = "";
-	}
 
 	if (device)
 	{
@@ -178,16 +167,7 @@ periodic_interrupt(HV *rtc, bool fEnable)
     PROTOTYPE: \%$
     PPCODE:
 	int fd = -1;
-	char const *node = ""; SV **device = hv_fetch(rtc, "device", 6, 0);;
-
-	{
-	    SV **nodename = hv_fetch(rtc, "nodename", 8, 0);
-
-	    if (nodename && (node = SvPV_nolen(*nodename), SvPOK(*nodename)))
-		;
-	    else
-		node = "";
-	}
+	SV **device = hv_fetch(rtc, "device", 6, 0);;
 
 	if (device)
 	{
@@ -234,17 +214,7 @@ update_interrupt(HV *rtc, bool fEnable)
     PROTOTYPE: \%$
     PPCODE:
 	int fd = -1;
-	char const *node = "";
 	SV **device = hv_fetch(rtc, "device", 6, 0);;
-
-	{
-	    SV **nodename = hv_fetch(rtc, "nodename", 8, 0);
-
-	    if (nodename && (node = SvPV_nolen(*nodename), SvPOK(*nodename)))
-		;
-	    else
-		node = "";
-	}
 
 	if (device)
 	{
@@ -291,17 +261,7 @@ alarm_interrupt(HV *rtc, bool fEnable)
     PROTOTYPE: \%$
     PPCODE:
 	int fd = -1;
-	char const *node = "";
 	SV **device = hv_fetch(rtc, "device", 6, 0);;
-
-	{
-	    SV **nodename = hv_fetch(rtc, "nodename", 8, 0);
-
-	    if (nodename && (node = SvPV_nolen(*nodename), SvPOK(*nodename)))
-		;
-	    else
-		node = "";
-	}
 
 	if (device)
 	{
@@ -349,18 +309,8 @@ read_time(HV *rtc)
     PPCODE:
 	struct rtc_time tm = { 0, 0, 0,  0, 0, 0,  -1, -1, -1 };
 	int fd = -1;
-	char const *node = "";
 	SV **device = hv_fetch(rtc, "device", 6, 0);
 	int result;
-
-	{
-	    SV **nodename = hv_fetch(rtc, "nodename", 8, 0);
-
-	    if (nodename && (node = SvPV_nolen(*nodename), SvPOK(*nodename)))
-		;
-	    else
-		node = "";
-	}
 
 	if (device)
 	{
@@ -485,17 +435,7 @@ set_time(HV *rtc, ...)
 	int args_count = items;
 	struct rtc_time tm = { 0, 0, 0,  0, 0, 0,  -1, -1, -1 };
 	int fd = -1;
-	char const *node = "";
 	SV **device = hv_fetch(rtc, "device", 6, 0);;
-
-	{
-	    SV **nodename = hv_fetch(rtc, "nodename", 8, 0);
-
-	    if (nodename && (node = SvPV_nolen(*nodename), SvPOK(*nodename)))
-		;
-	    else
-		node = "";
-	}
 
 	if (device)
 	{
@@ -662,18 +602,8 @@ read_alarm(HV *rtc)
     PPCODE:
 	struct rtc_time tm = { 0, 0, 0,  0, 0, 0,  -1, -1, -1 };
 	int fd = -1;
-	char const *node = "";
 	SV **device = hv_fetch(rtc, "device", 6, 0);;
 	int result;
-
-	{
-	    SV **nodename = hv_fetch(rtc, "nodename", 8, 0);
-
-	    if (nodename && (node = SvPV_nolen(*nodename), SvPOK(*nodename)))
-		;
-	    else
-		node = "";
-	}
 
 	if (device)
 	{
@@ -800,18 +730,7 @@ set_alarm(HV *rtc, ...)
 	int args_count = items;
 	struct rtc_time tm = { 0, 0, 0,  0, 0, 0,  -1, -1, -1 };
 	int fd = -1;
-	char const *node = "";
 	SV **device = hv_fetch(rtc, "device", 6, 0);;
-
-	function_code:
-	{
-	    SV **nodename = hv_fetch(rtc, "nodename", 8, 0);
-
-	    if (nodename && (node = SvPV_nolen(*nodename), SvPOK(*nodename)))
-		;
-	    else
-		node = "";
-	}
 
 	if (device)
 	{
@@ -978,18 +897,8 @@ read_wakeup_alarm(HV *rtc)
     PPCODE:
 	struct rtc_wkalrm tm = { 0, 0, { 0, 0, 0,  0, 0, 0,  -1, -1, -1 } };
 	int fd = -1;
-	char const *node = "";
 	SV **device = hv_fetch(rtc, "device", 6, 0);;
 	int result;
-
-	{
-	    SV **nodename = hv_fetch(rtc, "nodename", 8, 0);
-
-	    if (nodename && (node = SvPV_nolen(*nodename), SvPOK(*nodename)))
-		;
-	    else
-		node = "";
-	}
 
 	if (device)
 	{
@@ -1131,18 +1040,7 @@ set_wakeup_alarm(HV *rtc, ...)
 	int args_count = items;
 	struct rtc_wkalrm tm = { 0, 0, { 0, 0, 0,  0, 0, 0,  -1, -1, -1 } };
 	int fd = -1;
-	char const *node = "";
 	SV **device = hv_fetch(rtc, "device", 6, 0);;
-
-	function_code:
-	{
-	    SV **nodename = hv_fetch(rtc, "nodename", 8, 0);
-
-	    if (nodename && (node = SvPV_nolen(*nodename), SvPOK(*nodename)))
-		;
-	    else
-		node = "";
-	}
 
 	if (device)
 	{
@@ -1316,6 +1214,100 @@ set_wakeup_alarm(HV *rtc, ...)
 	{
 	    dXSTARG;
 	    int result = ioctl(fd, RTC_WKALM_SET, &tm);
+
+	    if (result < 0)
+		XPUSHs(&PL_sv_undef);
+	    else
+		XPUSHu(result);
+
+	    XSRETURN(1);
+	}
+
+#endif
+
+#if defined(RTC_VL_READ)
+
+void
+read_voltage_low_indicator(HV *rtc)
+    PROTOTYPE: \%
+    PPCODE:
+	int result, voltage_low_indicator;
+	int fd = -1;
+	SV **device = hv_fetch(rtc, "device", 6, 0);;
+
+	if (device)
+	{
+	    IO *file_io = sv_2io(*device);
+
+	    if (file_io)
+	    {
+		PerlIO *device_perlio = IoIFP(file_io);
+
+		if (device_perlio)
+		{
+		    fd = PerlIO_fileno(device_perlio);
+
+		    if (fd < 0)
+			croak(invalidHandleMsg);
+		}
+		else
+		    croak(invalidHandleMsg);
+	    }
+	    else
+		croak(invalidHandleMsg);
+	}
+	else
+	    croak(missingDeviceFileMsg);
+
+	result = ioctl(fd, RTC_VL_READ, &voltage_low_indicator);
+
+	if (result < 0)
+	    XSRETURN_UNDEF;
+	else
+	{
+	    dXSTARG;
+	    XPUSHi(voltage_low_indicator);
+	    XSRETURN(1);
+	}
+
+#endif
+
+#if defined(RTC_VL_CLR)
+
+void
+clear_voltage_low_indicator(HV *rtc)
+    PROTOTYPE: \%
+    PPCODE:
+	int fd = -1;
+	SV **device = hv_fetch(rtc, "device", 6, 0);;
+
+	if (device)
+	{
+	    IO *file_io = sv_2io(*device);
+
+	    if (file_io)
+	    {
+		PerlIO *device_perlio = IoIFP(file_io);
+
+		if (device_perlio)
+		{
+		    fd = PerlIO_fileno(device_perlio);
+
+		    if (fd < 0)
+			croak(invalidHandleMsg);
+		}
+		else
+		    croak(invalidHandleMsg);
+	    }
+	    else
+		croak(invalidHandleMsg);
+	}
+	else
+	    croak(missingDeviceFileMsg);
+
+	{
+	    dXSTARG;
+	    int result = ioctl(fd, RTC_VL_CLR, 0);
 
 	    if (result < 0)
 		XPUSHs(&PL_sv_undef);

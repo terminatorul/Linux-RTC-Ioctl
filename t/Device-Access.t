@@ -3,7 +3,7 @@ use warnings;
 use Cwd;
 use Fcntl qw(SEEK_SET);
 use POSIX;
-use Test::More tests => 24;
+use Test::More tests => 26;
 
 BEGIN { use_ok('Linux::RTC::Ioctl', qw(:all)) };
 
@@ -28,11 +28,11 @@ SKIP:
 	skip 'RTC periodic frequncy not available on the platform', 5
 	    unless defined(\&Linux::RTC::Ioctl::periodic_frequency) && defined(\&Linux::RTC::Ioctl::periodic_interrupt);
 
-	eval { $rtc->periodic_frequency(32) // die "Access to RTC device $rtc->nodename failed: $!"; };
+	eval { $rtc->periodic_frequency(32) // die "Access to RTC device ${\$rtc->nodename} failed: $!"; };
 	ok( length($@) == 0, 'Set periodic frequency.') || diag($@);
 	ok( $rtc->periodic_frequency == 32, 'Get periodic frequency.');
 
-	eval { $rtc->periodic_interrupt(!0) // die "Access to RTC device $rtc->nodename failed: $!"; };
+	eval { $rtc->periodic_interrupt(!0) // die "Access to RTC device ${\$rtc->nodename} failed: $!"; };
 	ok( length $@ == 0, 'Set periodic interrupts.') || diag($@);
 
 	my $start_time = time;
@@ -48,14 +48,14 @@ SKIP:
 
 	ok($flag_ok && (time - $start_time >= 1), 'Periodic interrupt read.');
 
-	eval { $rtc->periodic_interrupt(0) // die "Access to RTC device $rtc->nodename failed: $!"; };
+	eval { $rtc->periodic_interrupt(0) // die "Access to RTC device ${\$rtc->nodename} failed: $!"; };
 	ok( length $@ == 0, 'Reset periodic interrupts.') || diag($@);
     }
 
     SKIP:
     {
 	skip 'RTC update interrupts not available on the platform.', 3 unless defined(&Linux::RTC::Ioctl::update_interrupt);
-	eval { $rtc->update_interrupt(!0) // die "Access to RTC device $rtc->nodename failed: $!"; };
+	eval { $rtc->update_interrupt(!0) // die "Access to RTC device ${\$rtc->nodename} failed: $!"; };
 	ok( length $@ == 0, 'Set update interrupts.') || diag($@);
 
 	my $start_time = time;
@@ -78,7 +78,7 @@ SKIP:
 	skip 'Reading RTC date and time not available on the platform', 1
 	    unless defined(&Linux::RTC::Ioctl::read_time);
 
-	$rtc->read_time // die "Access to RTC device $rtc->nodename failed: $!";
+	$rtc->read_time // die "Access to RTC device ${\$rtc->nodename} failed: $!";
 	my $time1 = POSIX::mktime($rtc->{sec}, $rtc->{min}, $rtc->{hour}, $rtc->{mday}, $rtc->{mon}, $rtc->{year});
 
 	my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = $rtc->read_time;
@@ -103,10 +103,10 @@ SKIP:
 	skip 'RTC alarm not available on the platform.', 5
 	    unless defined(&Linux::RTC::Ioctl::alarm_interrupt) && defined(&Linux::RTC::Ioctl::set_alarm) && defined(&Linux::RTC::Ioctl::read_alarm);
 
-	eval { $rtc->alarm_interrupt(!0 // die "Access to RTC device $rtc->nodename failed: $!"); };
+	eval { $rtc->alarm_interrupt(!0 // die "Access to RTC device ${\$rtc->nodename} failed: $!"); };
 	ok( length $@ == 0, 'Set alarm interrupts.') || diag($@);
 
-	eval { $rtc->alarm_interrupt(0 // die "Access to RTC device $rtc->nodename failed: $!"); };
+	eval { $rtc->alarm_interrupt(0 // die "Access to RTC device ${\$rtc->nodename} failed: $!"); };
 	ok( length $@ == 0, 'Reset alarm interrupts.') || diag($@);
 
 	skip 'Reading RTC date and time not available on the platform', 3
@@ -115,12 +115,12 @@ SKIP:
 	$rtc->close;
 	$rtc = Linux::RTC::Ioctl->new($DEVICE_FILE);
 
-	$rtc->read_time // die "Access to RTC device $rtc->nodename failed: $!";
+	$rtc->read_time // die "Access to RTC device ${\$rtc->nodename} failed: $!";
 	my $rtc_time = POSIX::mktime($$rtc{sec}, $rtc->{min}, $rtc->{hour}, $$rtc{mday}, $$rtc{mon}, $$rtc{year});
 	my $rtc_daytime = POSIX::mktime($$rtc{sec}, $$rtc{min}, $$rtc{hour}, 0, 0, 0);
 
-	$rtc->set_alarm(localtime($rtc_time + 2)) // die "Access to RTC device $rtc->nodename failed: $!";
-	$rtc->read_alarm // die "Access to RTC device $rtc->nodename failed: $!";
+	$rtc->set_alarm(localtime($rtc_time + 2)) // die "Access to RTC device ${\$rtc->nodename} failed: $!";
+	$rtc->read_alarm // die "Access to RTC device ${\$rtc->nodename} failed: $!";
 	my $alarm_time = POSIX::mktime($$rtc{sec}, $$rtc{min}, $$rtc{hour}, $$rtc{mday}, $$rtc{mon}, $$rtc{year});
 	my $alarm_daytime = POSIX::mktime($$rtc{sec}, $$rtc{min}, $$rtc{hour}, 0, 0, 0);
 
@@ -140,7 +140,7 @@ SKIP:
 	    }
 	}
 
-	$rtc->alarm_interrupt(!0) // die "Access to RTC device $rtc->nodename failed: $!";
+	$rtc->alarm_interrupt(!0) // die "Access to RTC device ${\$rtc->nodename} failed: $!";
 	my($flags, $count) = $rtc->wait_for_timer;
 	my $interrupt_time = POSIX::mktime($rtc->read_time);
 	my $interrupt_daytime = POSIX::mktime($$rtc{sec}, $$rtc{min}, $$rtc{hour}, 0, 0, 0);
@@ -148,7 +148,7 @@ SKIP:
 	ok($alarm_time == $interrupt_time || $alarm_daytime == $interrupt_daytime, 'Alarm event read.');
 	ok($flags & RTC_AF && $count >= 1, 'Alarm event reported.');
 
-	$rtc->alarm_interrupt(0) // die "Access to RTC device $rtc->nodename failed: $!";
+	$rtc->alarm_interrupt(0) // die "Access to RTC device ${\$rtc->nodename} failed: $!";
     }
 
     SKIP:
@@ -162,11 +162,11 @@ SKIP:
 	$rtc->close;
 	$rtc = Linux::RTC::Ioctl->new($DEVICE_FILE);
 
-	$rtc->read_time // die "Access to RTC device $rtc->nodename failed: $!";
+	$rtc->read_time // die "Access to RTC device ${\$rtc->nodename} failed: $!";
 	my $rtc_time = POSIX::mktime($$rtc{sec}, $rtc->{min}, $rtc->{hour}, $$rtc{mday}, $$rtc{mon}, $$rtc{year});
 
-	$rtc->set_wakeup_alarm(1, 0, localtime($rtc_time + 2)) // die "Access to RTC device " . $rtc->nodename . " failed: $!";
-	$rtc->read_wakeup_alarm // die "Access to RTC device $rtc->nodename failed: $!";
+	$rtc->set_wakeup_alarm(1, 0, localtime($rtc_time + 2)) // die "Access to RTC device ${\$rtc->nodename} failed: $!";
+	$rtc->read_wakeup_alarm // die "Access to RTC device ${\$rtc->nodename} failed: $!";
 	my $alarm_time = POSIX::mktime($$rtc{sec}, $$rtc{min}, $$rtc{hour}, $$rtc{mday}, $$rtc{mon}, $$rtc{year});
 
 	if ($rtc->{enabled} && ($alarm_time - $rtc_time == 2))
@@ -201,34 +201,61 @@ SKIP:
 	# add 1 year, 28 days, 5 days, 8 hours, 43min and 18sec to the current RTC time
 	my $future_time = $present_time + 360*24*3600 + 28*24*3600 + 5*24*3600 + 8*3600 + 43*60 + 18;
 
-	eval
+	# This will really modify your computer time
+	if (defined $rtc->set_time(localtime $future_time))
 	{
-	    # This will really modify your computer time
-	    $rtc->set_time(localtime $future_time);
 	    $restoreRTCTime = !0;
-	};
+	    pass('RTC time write access.');
 
-	if ($@)
+	    is(POSIX::mktime(($rtc->read_time)[0..5]), POSIX::mktime((localtime $future_time)[0..5]), 'Set RTC time');
+
+	    $rtc->set_time; # restore present date and time
+	    is(POSIX::mktime($rtc->read_time), $present_time, 'Restore RTC time');
+	    $restoreRTCTime = 0;
+	}
+	else
 	{
 	    if ($! == POSIX::EACCES)
 	    {
 		skip "Access to $DEVICE_FILE required for setting time.", 3
 	    }
 
-	    diag($@);
-	    diag("Ioctl error: $!") if ($@ =~ m/Access to real time clock device .* failed/);
+	    diag("Ioctl error: $!");
 	    fail('RTC time write access.');
+	}
+    }
+
+    SKIP:
+    {
+	skip 'Read voltage low indicator not available on the platform', 1
+	    unless defined \&Linux::RTC::Ioctl::read_voltage_low_indicator;
+
+	my $voltage_low = $rtc->read_voltage_low_indicator;
+
+	if (defined $voltage_low)
+	{
+	    diag("Voltage low indicator: $voltage_low.");
+	    pass('Read voltage low indicator.');
 	}
 	else
 	{
-	    pass('RTC time write access.');
+	    skip "Read voltage low indicator not implemented: $!", 1;
 	}
+    }
 
-	is(POSIX::mktime(($rtc->read_time)[0..5]), POSIX::mktime((localtime $future_time)[0..5]), 'Set RTC time');
+    SKIP:
+    {
+	skip 'Clear voltage low indicator not available on the platform', 1
+	    unless defined \&Linux::RTC::Ioctl::clear_voltage_low_indicator;
 
-	$rtc->set_time; # restore present date and time
-	is(POSIX::mktime($rtc->read_time), $present_time, 'Restore RTC time');
-	$restoreRTCTime = 0;
+	if (defined $rtc->clear_voltage_low_indicator)
+	{
+	    pass('Clear voltage low indicator.');
+	}
+	else
+	{
+	    skip "Clear voltage low indicator not implemented: $!", 1
+	}
     }
 }
 

@@ -61,7 +61,7 @@ Usage:
     $freq = $rtc->periodic_frequency;
     $rtc->periodic_interrupt($enable);
 
-    $rtc->read_alarm // die "Access to RTC device $rtc->nodename failed: $!";
+    $rtc->read_alarm // die "Access to RTC device ${\$rtc->nodename} failed: $!";
     $rtc->set_alarm($sec, $min, $hour, $mday, $mon, $year);
     $rtc->read_wakup_alarm
     $rtc->set_wakeup_alarm($sec, $min, $hour, $mday, $mon, $year);
@@ -174,7 +174,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
 Creates an RTC object from given open file handle, device file name, device index, or C</dev/rtc> by default.
 
-If an open file handle is given, it must represent a device file on the platform, that supportes the RTC ioctl commands.
+If an open file handle is given, it must represent a device file on the platform, that supportes the RTC ioctl requests.
 Binary mode will be turned on for the open handle
 
 Only one process can open the same RTC device at a time. Returns C<undef> if opening fails, in which case you can read
@@ -240,6 +240,8 @@ The name of the device file that is used by this C<$rtc> object. This is given (
 If the C<new()> constructor is given an open file handle (no file name), the nodename will be C<undef>, unless (on most Linux platforms) the file
 name can still be found using procfs at a path of the form: C<< /proc/<PID>/fd/<fd> >>.
 
+Might be usefull to show error messages when C<$rtc> methods fail.
+
 =cut
 
 sub nodename(\%)
@@ -300,7 +302,8 @@ are called in void or scalar context. When such methods are called in list conte
 in the C<$rtc> object.
 
 
-Note the RTC device does not use the last 3 time components: C<$wday>, C<$yday>, C<$isdst>.
+Note the RTC device does not use the last 3 time components: C<$wday>, C<$yday>, C<$isdst>. They are included here to match the platform C-language
+API, but it f needed please exclude them with a sublist like C<< @{[ $rtc->rtctime ]}[0..5] >>.
 
 =cut
 
@@ -434,16 +437,31 @@ when you can read the C<$!> variable.
 
 =head2 $rtc->set_wakeup_alarm
 
-    $rtc->read_wakup_alarm // die "Access to real time clock device $rtc->nodename failed: $!";
+    $rtc->read_wakup_alarm // die "Access to real time clock device ${\$rtc->nodename} failed: $!";
     $enabled, $pending, $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst = $rtc->read_wakeup_alarm;
 
+    $rtc->set_wakeup_alarm // die "Access failed";
+    $rtc->set_wakeup_alarm($enabled, $pending, $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) // die "Error";
+
 Some RTCs support these methods as improved (and preferred) versions of C<< $rtc->read_alarm >> and C<< $rtc->set_alarm >>.
-The C<$enabled> argument or return is used to enabled or diable the alarm interrupt for this alarm, the C<< $rtc->alarm_interrupt >> call
+The C<$enabled> argument or return is used to enable or disable the alarm interrupt for this alarm, the C<< $rtc->alarm_interrupt >> call
 is not used for this alarm. The C<$pending> argument is used to report a pending interrupt, mostly for firmware, do not use it.
 
 Both time and date components should work to set the wake-up alarm. Some hardware allows periodic alarms if you use 0 for year, month, day,
-etc. On most hardware this alarm can kick the computer out of suspend / stand-by or even hibernate / power-off (might not work for laptops
-running on battery power).
+etc. On most hardware this alarm can kick the computer out of suspend / stand-by or power-off (might not work for laptops
+running on battery power). You might read this information from F</sys/class/rtc/rtc0/device/power/wakeup> file.
+
+If method arguments or results are not used, the time components can be found in the C<$rtc> object fields, as well as the two additional
+fields C<< $rtc->{enabled} >> and C<< $rtc->{pending} >>.
+
+=head2 $rtc->read_voltage_low_indicator
+
+=head2 $rtc->clear_voltage_low_indicator
+
+    $voltage_indicator = $rtc->read_voltage_low_indicator // die "Voltage Low indicator not supported $!."
+    $rtc->clear_voltage_low_indicator // die "Voltage low indicator not supported $!."
+
+Not directly documentated, presumably reads/resets RTC battery voltage low indicator for hardware that can report this.
 
 =head2 $rtc->close
 
