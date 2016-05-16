@@ -16,7 +16,7 @@ my $restoreRTCTime = 0;
 
 SKIP:
 {
-    skip "Read access to $DEVICE_FILE needed.", 20
+    skip "Read access to $DEVICE_FILE needed.", 25
 	unless (-r $DEVICE_FILE);
 
     my $rtc = Linux::RTC::Ioctl->new($DEVICE_FILE) // die "Failed to open RTC device $DEVICE_FILE";

@@ -2,18 +2,18 @@
 use ExtUtils::MakeMaker;
 WriteMakefile
 (
-  'VERSION_FROM' => 'lib/Linux/RTC/Ioctl.pm',
-  'NAME' => 'Linux::RTC::Ioctl',
-  'INSTALLDIRS' => 'site',
-  'EXE_FILES' => [],
-  'PL_FILES' => {},
   'PREREQ_PM' => {
-                   'Cwd' => 0,
-                   'Test::More' => 0,
                    'POSIX' => 0,
-                   'Fcntl' => 0,
                    'Carp' => 0,
-                   'ExtUtils::CBuilder' => 0
-                 }
+                   'Cwd' => 0,
+                   'ExtUtils::CBuilder' => 0,
+                   'Test::More' => 0,
+                   'Fcntl' => 0
+                 },
+  'EXE_FILES' => [],
+  'INSTALLDIRS' => 'site',
+  'NAME' => 'Linux::RTC::Ioctl',
+  'VERSION_FROM' => 'lib/Linux/RTC/Ioctl.pm',
+  'PL_FILES' => {}
 )
 ;
