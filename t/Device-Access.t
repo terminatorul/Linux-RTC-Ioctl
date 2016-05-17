@@ -69,7 +69,7 @@ SKIP:
 
 	ok( $flag_ok && time - $start_time >= 2, 'Update interrupt read.');
 
-	eval { $rtc->update_interrupt(0); };
+	eval { $rtc->update_interrupt(0) // die "Access to RTC device ${\$rtc->nodename} failed: $!"; };
 	ok( length $@ == 0, 'Reset update interrupts.') || diag($@);
     }
 

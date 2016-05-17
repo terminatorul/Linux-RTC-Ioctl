@@ -294,7 +294,7 @@ Similar to C<localtime> and C<gmtime>, C<< $rtc->rtctime >> returns a list of th
 You can also pass such a list to this method, to populate the C<$rtc> object.
 
 There is no calendar time alternative to these components, measured as seconds from the begining of the Unix epoch. To build one you would need to
-know the RTC time zone first (either GMT or the local time zone) which the RTC device does not know.
+know the RTC time zone (either GMT or the local time zone), which the RTC device does not.
 
 The time components stored in the C<$rtc> object are used by the C<set_time>, C<set_alarm> and C<set_wakeup_alarm> methods when they are called
 without any arguments. The time components are also populated by the C<read_time>, C<read_alarm> and C<read_wakeup_alarm> methods when they
@@ -368,8 +368,8 @@ sub rtctime(\%;$$$$$$$$$)
 
 Wait for the next timer event.
 
-Will issue a read from this RTC device. Blocks the current thread, so only use if you set up the alarm and/or you know
-it is going to ring soon enough. To avoid blocking the thread for just the RTC device, you can use the $rtc->device
+Will issue a read from this RTC device. Blocks the current thread, so only use if you set up the alarm or timer events, and/or
+you know it is going to ring soon enough. To avoid blocking the thread for just the RTC device, you can use the $rtc->device
 in a call to C<select()>.
 
 Returns a bitmask of flags indicating what timer events have occurred, and a count of all the events since the last read.
@@ -447,9 +447,9 @@ Some RTCs support these methods as improved (and preferred) versions of C<< $rtc
 The C<$enabled> argument or return is used to enable or disable the alarm interrupt for this alarm, the C<< $rtc->alarm_interrupt >> call
 is not used for this alarm. The C<$pending> argument is used to report a pending interrupt, mostly for firmware, do not use it.
 
-Both time and date components should work to set the wake-up alarm. Some hardware allows periodic alarms if you use 0 for year, month, day,
+Both time and date components should work to set the wake-up alarm. Some hardware allows periodic alarms if you use special values for year, month, day,
 etc. On most hardware this alarm can kick the computer out of suspend / stand-by or power-off (might not work for laptops
-running on battery power). You might read this information from F</sys/class/rtc/rtc0/device/power/wakeup> file.
+when running on battery power). You might read wakeup-enable status from F</sys/class/rtc/rtc0/device/power/wakeup> file.
 
 If method arguments or results are not used, the time components can be found in the C<$rtc> object fields, as well as the two additional
 fields C<< $rtc->{enabled} >> and C<< $rtc->{pending} >>.
